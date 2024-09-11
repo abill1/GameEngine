@@ -130,7 +130,7 @@ void ConsoleLog(const wchar_t* Text, ...)
 	va_end(args);
 
 	// ----- Write to console window
-	WriteConsole(hOut, WIDE_CONSOLE_BUF, lstrlen(WIDE_CONSOLE_BUF), &cwr, nullptr);
+	WriteConsole(hOut, WIDE_CONSOLE_BUF, (DWORD)lstrlen(WIDE_CONSOLE_BUF), &cwr, nullptr);
 
 	// ----- Write to Visual Studio Output
 	OutputDebugStringW(WIDE_CONSOLE_BUF);
@@ -154,7 +154,7 @@ void ConsoleErr(const wchar_t* Text, ...)
 	va_end(args);
 
 	// ----- Write to console window
-	WriteConsole(hOut, WIDE_CONSOLE_BUF, lstrlen(WIDE_CONSOLE_BUF), &cwr, nullptr);
+	WriteConsole(hOut, WIDE_CONSOLE_BUF, (DWORD)lstrlen(WIDE_CONSOLE_BUF), &cwr, nullptr);
 
 	// ----- Write to Visual Studio Output
 	OutputDebugStringW(WIDE_CONSOLE_BUF);
@@ -178,7 +178,7 @@ void ConsoleWrn(const wchar_t* Text, ...)
 	va_end(args);
 
 	// ----- Write to console window
-	WriteConsole(hOut, WIDE_CONSOLE_BUF, lstrlen(WIDE_CONSOLE_BUF), &cwr, nullptr);
+	WriteConsole(hOut, WIDE_CONSOLE_BUF, (DWORD)lstrlen(WIDE_CONSOLE_BUF), &cwr, nullptr);
 
 	// ----- Write to Visual Studio Output
 	OutputDebugStringW(WIDE_CONSOLE_BUF);
