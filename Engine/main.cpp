@@ -58,7 +58,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 	ConsoleLog(L"Hello World\n");
 	ConsoleLog(L"It was nice to meet you. I hope to see you again!\n");
 	float price = 0.99f;
-	ConsoleLog(L"I would like to buy %d %s from you today for $ %d .\n", 5, L"apples", 3);
+	ConsoleLog(L"I would like to buy %d %ls from you today $%.2f.", 5, L"apples", price);
 	
 
 	// ----- Register the window class.
@@ -111,30 +111,25 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 //----- Functions Defines
 //================================================================================
 
+
 void ConsoleLog(const wchar_t* Text, ...)
 {
 #if _DEBUG
 	const int MAX_BUF_SIZE = 4096;
-	static char CONSOLE_BUFFER[MAX_BUF_SIZE];
-	memset(CONSOLE_BUFFER, 0, MAX_BUF_SIZE);
 	static wchar_t WIDE_CONSOLE_BUF[MAX_BUF_SIZE];
 	memset(WIDE_CONSOLE_BUF, 0, MAX_BUF_SIZE);
 	HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
 	SetConsoleTextAttribute(hOut, FOREGROUND_GREEN | FOREGROUND_INTENSITY);
 	DWORD cwr = {};
-
+	
 	// ----- Read in any variable arguments
 	va_list args;
 	va_start(args, Text);
-	wvsprintf((LPWSTR)WIDE_CONSOLE_BUF, Text, args); // TODO: Figure out issue with float args not being passed. 
+	vswprintf_s((LPWSTR)WIDE_CONSOLE_BUF, MAX_BUF_SIZE, (LPCWSTR)Text, args); // TODO: Figure out issue with float args not being passed. 
 	va_end(args);
 
-	// ----- Write to console
-	int len = WideCharToMultiByte(CP_UTF8, 0, WIDE_CONSOLE_BUF, lstrlen(WIDE_CONSOLE_BUF), nullptr, 0, nullptr, nullptr);
-	if (len > MAX_BUF_SIZE)
-		len = MAX_BUF_SIZE;
-	WideCharToMultiByte(CP_UTF8, 0, WIDE_CONSOLE_BUF, lstrlen(WIDE_CONSOLE_BUF), CONSOLE_BUFFER, len, nullptr, nullptr);
-	WriteFile(hOut, CONSOLE_BUFFER, len, &cwr, nullptr);
+	// ----- Write to console window
+	WriteConsole(hOut, WIDE_CONSOLE_BUF, lstrlen(WIDE_CONSOLE_BUF), &cwr, nullptr);
 
 	// ----- Write to Visual Studio Output
 	OutputDebugStringW(WIDE_CONSOLE_BUF);
