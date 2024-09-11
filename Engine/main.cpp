@@ -42,6 +42,8 @@ DWORD cWritten;
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 D2D1_POINT_2F PixelsToDips(HWND _hwnd, float _x, float _y);
 void ConsoleLog(const wchar_t* Text, ...);
+void ConsoleErr(const wchar_t* Text, ...);
+void ConsoleWrn(const wchar_t* Text, ...);
 
 //================================================================================
 //----- Main
@@ -55,10 +57,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 
 	// ----- Create a Console for Window App
 	AllocConsole();
-	ConsoleLog(L"Hello World\n");
-	ConsoleLog(L"It was nice to meet you. I hope to see you again!\n");
+	ConsoleErr(L"Hello World\n");
+	ConsoleWrn(L"It was nice to meet you. I hope to see you again!\n");
 	float price = 0.99f;
-	ConsoleLog(L"I would like to buy %d %ls from you today $%.2f.", 5, L"apples", price);
+	ConsoleLog(L"I would like to buy %d %ls from you today $%.2f.\n", 5, L"apples", price);
 	
 
 	// ----- Register the window class.
@@ -111,7 +113,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 //----- Functions Defines
 //================================================================================
 
-
 void ConsoleLog(const wchar_t* Text, ...)
 {
 #if _DEBUG
@@ -122,6 +123,54 @@ void ConsoleLog(const wchar_t* Text, ...)
 	SetConsoleTextAttribute(hOut, FOREGROUND_GREEN | FOREGROUND_INTENSITY);
 	DWORD cwr = {};
 	
+	// ----- Read in any variable arguments
+	va_list args;
+	va_start(args, Text);
+	vswprintf_s((LPWSTR)WIDE_CONSOLE_BUF, MAX_BUF_SIZE, (LPCWSTR)Text, args); // TODO: Figure out issue with float args not being passed. 
+	va_end(args);
+
+	// ----- Write to console window
+	WriteConsole(hOut, WIDE_CONSOLE_BUF, lstrlen(WIDE_CONSOLE_BUF), &cwr, nullptr);
+
+	// ----- Write to Visual Studio Output
+	OutputDebugStringW(WIDE_CONSOLE_BUF);
+#endif
+}
+
+void ConsoleErr(const wchar_t* Text, ...)
+{
+#if _DEBUG
+	const int MAX_BUF_SIZE = 4096;
+	static wchar_t WIDE_CONSOLE_BUF[MAX_BUF_SIZE];
+	memset(WIDE_CONSOLE_BUF, 0, MAX_BUF_SIZE);
+	HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+	SetConsoleTextAttribute(hOut, FOREGROUND_RED | FOREGROUND_INTENSITY);
+	DWORD cwr = {};
+
+	// ----- Read in any variable arguments
+	va_list args;
+	va_start(args, Text);
+	vswprintf_s((LPWSTR)WIDE_CONSOLE_BUF, MAX_BUF_SIZE, (LPCWSTR)Text, args); // TODO: Figure out issue with float args not being passed. 
+	va_end(args);
+
+	// ----- Write to console window
+	WriteConsole(hOut, WIDE_CONSOLE_BUF, lstrlen(WIDE_CONSOLE_BUF), &cwr, nullptr);
+
+	// ----- Write to Visual Studio Output
+	OutputDebugStringW(WIDE_CONSOLE_BUF);
+#endif
+}
+
+void ConsoleWrn(const wchar_t* Text, ...)
+{
+#if _DEBUG
+	const int MAX_BUF_SIZE = 4096;
+	static wchar_t WIDE_CONSOLE_BUF[MAX_BUF_SIZE];
+	memset(WIDE_CONSOLE_BUF, 0, MAX_BUF_SIZE);
+	HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+	SetConsoleTextAttribute(hOut, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY);
+	DWORD cwr = {};
+
 	// ----- Read in any variable arguments
 	va_list args;
 	va_start(args, Text);
@@ -169,6 +218,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		PostQuitMessage(0);
 		break;
 	}
+	case WM_KEYDOWN:
+	{
+		break;
+	}
 	case WM_LBUTTONDOWN:
 	{
 		SetCapture(hwnd);
@@ -176,7 +229,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		ellipse.point = ptMouse;
 		ellipse.radiusX = 1.0f;
 		ellipse.radiusY = 1.0f;
-		printf("Mouse Point: (X:{%.2f},Y:{%.2f})\n ", ptMouse.x, ptMouse.y);
+		ConsoleLog(L"Mouse Point: (X:{%.2f},Y:{%.2f})\n ", ptMouse.x, ptMouse.y);
 		InvalidateRect(hwnd, nullptr, FALSE);
 		break;
 	}
