@@ -51,13 +51,15 @@ public:
 	void Meow();
 };
 
-enum class MOUSE_BUTTONS : unsigned __int8
+// TODO: Complete the list of possible events
+enum class MOUSE_INPUTS : unsigned __int8
 {
-	MOUSE_LEFT = 0b1,
-	MOUSE_MIDDLE = 0b10,
-	MOUSE_RIGHT = 0b100,
-	MOUSE_X1 = 0b1000,
-	MOUSE_X2 = 0b10000
+	LEFT_DOWN,
+	LEFT_UP,
+	RIGHT_DOWN,
+	RIGHT_UP,
+	MOVE,
+	WHEEL
 };
 
 //================================================================================
@@ -75,7 +77,9 @@ HANDLE hStdout;
 DWORD cWritten;
 // ----- Input devices
 const int KEYS = 256;
+const int NUM_MOUSE_INPUTS = 256; // TODO: update with the exact number of mouse inputs
 std::function<void()> Inputs[KEYS];
+std::function<void(HWND hwnd, WPARAM wParam, LPARAM lParam)> MouseInputs[256];
 Mouse mouse;
 
 //================================================================================
@@ -87,7 +91,11 @@ D2D1_POINT_2F PixelsToDips(HWND _hwnd, float _x, float _y);
 void ConsoleLog(const wchar_t* Text, ...);
 void ConsoleErr(const wchar_t* Text, ...);
 void ConsoleWrn(const wchar_t* Text, ...);
-void StubFunc();
+void StubKeyFunc();
+void StubMouseFunc(HWND hwnd, WPARAM wParam, LPARAM lParam);
+void OnLeftDown(HWND hwnd, WPARAM wParam, LPARAM lParam);
+void OnLeftUp(HWND hwnd, WPARAM wParam, LPARAM lParam);
+void OnMove(HWND hwnd, WPARAM wParam, LPARAM lParam);
 
 //================================================================================
 //----- Main
@@ -107,9 +115,11 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 	ConsoleLog(L"I would like to buy %d %ls from you today $%.2f.\n", 5, L"apples", price);
 
 	// ----- Define user input functions
+	using namespace std::placeholders;
 	for (int i = 0; i < KEYS; i++)
 	{
-		Inputs[i] = std::bind(&StubFunc);
+		Inputs[i] = std::bind(&StubKeyFunc);
+		MouseInputs[i] = std::bind(&StubMouseFunc, _1, _2, _3);
 	}
 
 	Dog spot;
@@ -117,7 +127,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 
 	Inputs['A'] = std::bind(&Dog::Bark, &spot);
 	Inputs['W'] = std::bind(&Cat::Meow, &felix);
-	
+
+	MouseInputs[(int)MOUSE_INPUTS::LEFT_DOWN] = std::bind(&OnLeftDown, _1, _2, _3);
+	MouseInputs[(int)MOUSE_INPUTS::LEFT_UP] = std::bind(&OnLeftUp, _1, _2, _3);
+	MouseInputs[(int)MOUSE_INPUTS::MOVE] = std::bind(&OnMove, _1, _2, _3);
 
 	// ----- Register the window class.
 	
@@ -158,10 +171,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
-
-		// ----- Input Detection
 		
-
 	}
 
 	FreeConsole();
@@ -172,6 +182,42 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 //================================================================================
 //----- Functions Defines
 //================================================================================
+
+void OnLeftDown(HWND hwnd, WPARAM wParam, LPARAM lParam)
+{
+	SetCapture(hwnd);
+	ptMouse = PixelsToDips(hwnd, (float)GET_X_LPARAM(lParam), (float)GET_Y_LPARAM(lParam));
+	ellipse.point = ptMouse;
+	ellipse.radiusX = 1.0f;
+	ellipse.radiusY = 1.0f;
+	ConsoleLog(L"Mouse Point: (X:{%.2f},Y:{%.2f})\n ", ptMouse.x, ptMouse.y);
+	InvalidateRect(hwnd, nullptr, FALSE);
+}
+
+void OnLeftUp(HWND hwnd, WPARAM wParam, LPARAM lParam)
+{
+	UNUSED_VAR(hwnd);
+	UNUSED_VAR(wParam);
+	UNUSED_VAR(lParam);
+	ReleaseCapture();
+}
+
+void OnMove(HWND hwnd, WPARAM wParam, LPARAM lParam)
+{
+	float pixelx = (float)GET_X_LPARAM(lParam);
+	float pixely = (float)GET_Y_LPARAM(lParam);
+	DWORD flags = (DWORD)wParam;
+	if (flags & MK_LBUTTON)
+	{
+		D2D1_POINT_2F dips = PixelsToDips(hwnd, pixelx, pixely);
+		float width = (dips.x - ptMouse.x) / 2.0f;
+		float height = (dips.y - ptMouse.y) / 2.0f;
+		float x1 = ptMouse.x + width;
+		float y1 = ptMouse.y + height;
+		ellipse = D2D1::Ellipse(D2D1::Point2F(x1, y1), width, height);
+		InvalidateRect(hwnd, nullptr, FALSE);
+	}
+}
 
 void Cat::Meow()
 {
@@ -187,9 +233,16 @@ void Dog::Bark()
 	ConsoleLog(L"Spot Barks in direction x:%d, y:%d\n", x, y);
 }
 
-void StubFunc()
+void StubKeyFunc()
 {
 	ConsoleLog(L"No user defined input assigned.\n");
+}
+
+void StubMouseFunc(HWND hwnd, WPARAM wParam, LPARAM lParam)
+{
+	UNUSED_VAR(hwnd);
+	UNUSED_VAR(wParam);
+	UNUSED_VAR(lParam);
 }
 
 void ConsoleLog(const wchar_t* Text, ...)
@@ -336,35 +389,17 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	}
 	case WM_LBUTTONDOWN:
 	{
-		SetCapture(hwnd);
-		ptMouse = PixelsToDips(hwnd, (float)GET_X_LPARAM(lParam), (float)GET_Y_LPARAM(lParam));
-		ellipse.point = ptMouse;
-		ellipse.radiusX = 1.0f;
-		ellipse.radiusY = 1.0f;
-		ConsoleLog(L"Mouse Point: (X:{%.2f},Y:{%.2f})\n ", ptMouse.x, ptMouse.y);
-		InvalidateRect(hwnd, nullptr, FALSE);
+		MouseInputs[(int)MOUSE_INPUTS::LEFT_DOWN](hwnd, wParam, lParam);
 		break;
 	}
 	case WM_LBUTTONUP:
 	{
-		ReleaseCapture();
+		MouseInputs[(int)MOUSE_INPUTS::LEFT_UP](hwnd, wParam, lParam);
 		break;
 	}
 	case WM_MOUSEMOVE:
 	{
-		float pixelx = (float)GET_X_LPARAM(lParam);
-		float pixely = (float)GET_Y_LPARAM(lParam);
-		DWORD flags = (DWORD)wParam;
-		if (flags & MK_LBUTTON)
-		{
-			D2D1_POINT_2F dips = PixelsToDips(hwnd, pixelx, pixely);
-			float width = (dips.x - ptMouse.x) / 2.0f;
-			float height = (dips.y - ptMouse.y) / 2.0f;
-			float x1 = ptMouse.x + width;
-			float y1 = ptMouse.y + height;
-			ellipse = D2D1::Ellipse(D2D1::Point2F(x1, y1), width, height);
-			InvalidateRect(hwnd, nullptr, FALSE);
-		}
+		MouseInputs[(int)MOUSE_INPUTS::MOVE](hwnd, wParam, lParam);
 		break;
 	}
 	case WM_PAINT:
