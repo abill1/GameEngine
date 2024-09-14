@@ -11,6 +11,7 @@
 #include <d2d1.h>
 #include <windowsx.h>
 #include <cstdio>
+#include <functional>
 
 //================================================================================
 //----- Macros
@@ -20,6 +21,44 @@
 #define CHECK_EQUALS(x,y) assert(x==y)
 #define CHECK_NOT(x,y) assert(x!=y)
 #define UNUSED_VAR(x) (void(x))
+
+//================================================================================
+//----- Structures
+//================================================================================
+
+struct Mouse
+{
+	int x;
+	int y;
+	unsigned __int8 buttons;
+};
+
+class Dog
+{
+public:
+	Dog() = default;
+	int x;
+	int y;
+	void Bark();
+};
+
+class Cat
+{
+public:
+	Cat() = default;
+	int x;
+	int y;
+	void Meow();
+};
+
+enum class MOUSE_BUTTONS : unsigned __int8
+{
+	MOUSE_LEFT = 0b1,
+	MOUSE_MIDDLE = 0b10,
+	MOUSE_RIGHT = 0b100,
+	MOUSE_X1 = 0b1000,
+	MOUSE_X2 = 0b10000
+};
 
 //================================================================================
 //----- Globals
@@ -34,6 +73,10 @@ D2D1_ELLIPSE ellipse;
 D2D1_POINT_2F ptMouse;
 HANDLE hStdout;
 DWORD cWritten;
+// ----- Input devices
+const int KEYS = 256;
+std::function<void()> Inputs[KEYS];
+Mouse mouse;
 
 //================================================================================
 //----- Function Declarations
@@ -44,6 +87,7 @@ D2D1_POINT_2F PixelsToDips(HWND _hwnd, float _x, float _y);
 void ConsoleLog(const wchar_t* Text, ...);
 void ConsoleErr(const wchar_t* Text, ...);
 void ConsoleWrn(const wchar_t* Text, ...);
+void StubFunc();
 
 //================================================================================
 //----- Main
@@ -61,6 +105,18 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 	ConsoleWrn(L"It was nice to meet you. I hope to see you again!\n");
 	float price = 0.99f;
 	ConsoleLog(L"I would like to buy %d %ls from you today $%.2f.\n", 5, L"apples", price);
+
+	// ----- Define user input functions
+	for (int i = 0; i < KEYS; i++)
+	{
+		Inputs[i] = std::bind(&StubFunc);
+	}
+
+	Dog spot;
+	Cat felix;
+
+	Inputs['A'] = std::bind(&Dog::Bark, &spot);
+	Inputs['W'] = std::bind(&Cat::Meow, &felix);
 	
 
 	// ----- Register the window class.
@@ -102,6 +158,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
+
+		// ----- Input Detection
+		
+
 	}
 
 	FreeConsole();
@@ -112,6 +172,25 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 //================================================================================
 //----- Functions Defines
 //================================================================================
+
+void Cat::Meow()
+{
+	x += 2;
+	y++;
+	ConsoleLog(L"Felix Meows in direction x:%d, y:%d\n", x, y);
+}
+
+void Dog::Bark()
+{
+	x += 2;
+	y++;
+	ConsoleLog(L"Spot Barks in direction x:%d, y:%d\n", x, y);
+}
+
+void StubFunc()
+{
+	ConsoleLog(L"No user defined input assigned.\n");
+}
 
 void ConsoleLog(const wchar_t* Text, ...)
 {
@@ -194,6 +273,7 @@ D2D1_POINT_2F PixelsToDips(HWND _hwnd, float _x, float _y)
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+	static bool InFocus = true;
 	LRESULT result = 0;
 	switch (uMsg)
 	{
@@ -203,6 +283,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			result =  -1;
 		break;
 	}
+	case WM_QUIT:
 	case WM_DESTROY:
 	{
 		// ----- Release 2d Graphic objects
@@ -218,8 +299,39 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		PostQuitMessage(0);
 		break;
 	}
+	case WM_KILLFOCUS:
+	{
+		InFocus = false;
+		mouse.buttons = 0;
+		break;
+	}
+	case WM_SETFOCUS:
+	{
+		InFocus = true;
+		break;
+	}
+	case WM_SYSKEYUP:
+	case WM_KEYUP:
+	{
+		break;
+	}
+	case WM_SYSKEYDOWN:
 	case WM_KEYDOWN:
 	{
+		if (InFocus)
+		{
+			WORD keyFlags = HIWORD(lParam);
+			WORD scanCode = LOBYTE(keyFlags);
+			bool isExtendedKey = (keyFlags & KF_EXTENDED) == KF_EXTENDED;
+			if (isExtendedKey)
+				scanCode = MAKEWORD(scanCode, 0xE0);
+			bool wasDown = ((lParam & KF_REPEAT) != 0);
+			bool isDown = ((lParam & KF_UP) == 0);
+			if (wasDown != isDown)
+			{
+				Inputs[wParam]();
+			}
+		}
 		break;
 	}
 	case WM_LBUTTONDOWN:
