@@ -13,6 +13,10 @@
 #include <windowsx.h>
 #include <cstdio>
 #include <functional>
+#include <d3d11.h>
+#include <dxgi.h>
+#include <DirectXColors.h>
+#include <wrl/client.h>
 
 //================================================================================
 //----- Macros
@@ -22,6 +26,7 @@
 #define CHECK_EQUALS(x,y) assert(x==y)
 #define CHECK_NOT(x,y) assert(x!=y)
 #define UNUSED_VAR(x) (void(x))
+#define COMPTR(T, x) Microsoft::WRL::ComPtr<T> x;
 
 //================================================================================
 //----- Structures
@@ -168,6 +173,118 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 		ShowWindow(hwnd, nCmdShow);
 	}
 
+	// ----- DirectX 11 Setup
+
+	ID3D11Device* pDevice;
+	ID3D11DeviceContext* pDeviceContext;
+	IDXGISwapChain* pSwapChain;
+	ID3D11RenderTargetView* pRenderTargetView;
+	IDXGIFactory* pDXGIFactory1;
+	IDXGIAdapter* pDXGIAdapter;
+	IDXGIDevice* pDXGIDevice;
+
+	// COMPTR(ID3D11Device, pDevice);
+	// COMPTR(ID3D11DeviceContext, pDeviceContext);
+	// COMPTR(IDXGISwapChain, pSwapChain);
+	// COMPTR(ID3D11RenderTargetView, pRenderTargetView);
+	// COMPTR(IDXGIFactory, pDXGIFactory1);
+	// COMPTR(IDXGIAdapter, pDXGIAdapter);
+	// COMPTR(IDXGIDevice, pDXGIDevice);
+	
+	unsigned int createDeviceFlags = 0;
+	D3D_DRIVER_TYPE driverTypes[] = {
+		D3D_DRIVER_TYPE_HARDWARE,
+		D3D_DRIVER_TYPE_WARP,
+		D3D_DRIVER_TYPE_REFERENCE
+	};
+
+	unsigned int numDriverTypes = ARRAYSIZE(driverTypes);
+
+	D3D_FEATURE_LEVEL featureLevels[] =
+	{
+		D3D_FEATURE_LEVEL_11_1,
+		D3D_FEATURE_LEVEL_11_0,
+		D3D_FEATURE_LEVEL_10_1,
+		D3D_FEATURE_LEVEL_10_0,
+	};
+
+	unsigned int numFeatureLevels = ARRAYSIZE(featureLevels);
+	D3D_DRIVER_TYPE activeDriverType;
+	D3D_FEATURE_LEVEL activeFeatureLevel;
+	HRESULT hr = S_OK;
+
+	for (unsigned int driverTypeIndex = 0u; driverTypeIndex < numDriverTypes; driverTypeIndex++)
+	{
+		activeDriverType = driverTypes[driverTypeIndex];
+		hr = D3D11CreateDevice(nullptr, activeDriverType, nullptr, createDeviceFlags, featureLevels, numFeatureLevels,
+			D3D11_SDK_VERSION, &pDevice, &activeFeatureLevel, &pDeviceContext);
+
+		if (hr == E_INVALIDARG)
+		{
+			// DirectX 11.0 platforms will not recognize D3D_FEATURE_LEVEL_11_1 so we need to retry without it
+			hr = D3D11CreateDevice(nullptr, activeDriverType, nullptr, createDeviceFlags, &featureLevels[1], numFeatureLevels - 1,
+				D3D11_SDK_VERSION, &pDevice, &activeFeatureLevel, &pDeviceContext);
+		}
+
+		if (SUCCEEDED(hr))
+			break;
+	}
+
+	pDevice->QueryInterface(__uuidof(IDXGIDevice), (void**)&pDXGIDevice);
+	pDXGIDevice->GetParent(__uuidof(IDXGIAdapter), (void**)&pDXGIAdapter);
+	pDXGIAdapter->GetParent(__uuidof(IDXGIFactory), (void**)&pDXGIFactory1);
+	
+	RECT rc;
+	GetClientRect(hwnd, &rc);
+	UINT width = rc.right - rc.left;
+	UINT height = rc.bottom - rc.top;
+
+	DXGI_SWAP_CHAIN_DESC mSwapChainDesc = { 0 };
+	mSwapChainDesc.BufferDesc.Width = width;
+	mSwapChainDesc.BufferDesc.Height = height;
+	mSwapChainDesc.BufferDesc.RefreshRate.Numerator = 60;
+	mSwapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
+	mSwapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	mSwapChainDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+	mSwapChainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+	mSwapChainDesc.SampleDesc.Count = 1;
+	mSwapChainDesc.SampleDesc.Quality = 0;
+	mSwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	mSwapChainDesc.BufferCount = 1;
+	mSwapChainDesc.OutputWindow = hwnd;
+	mSwapChainDesc.Windowed = true;
+	mSwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+	mSwapChainDesc.Flags = 0;
+
+	pDXGIFactory1->CreateSwapChain((ID3D11Device*&)pDevice, &mSwapChainDesc, &pSwapChain);
+	pDXGIFactory1->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER);
+	pDXGIFactory1->Release();
+	pDXGIAdapter->Release();
+	pDXGIDevice->Release();
+
+	// Create a render target view
+	ID3D11Texture2D* pBackBuffer = nullptr;
+	hr = pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&pBackBuffer);
+	if (FAILED(hr))
+		return hr;
+
+	hr = pDevice->CreateRenderTargetView(pBackBuffer, nullptr, &pRenderTargetView);
+	pBackBuffer->Release();
+	if (FAILED(hr))
+		return hr;
+
+	pDeviceContext->OMSetRenderTargets(1, &pRenderTargetView, nullptr);
+
+	// Setup the viewport
+	D3D11_VIEWPORT vp;
+	vp.Width = (FLOAT)width;
+	vp.Height = (FLOAT)height;
+	vp.MinDepth = 0.0f;
+	vp.MaxDepth = 1.0f;
+	vp.TopLeftX = 0;
+	vp.TopLeftY = 0;
+	pDeviceContext->RSSetViewports(1, &vp);
+
 	// ---- Game loop
 	while (bRunning)
 	{
@@ -178,8 +295,16 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
+
+		pDeviceContext->ClearRenderTargetView((ID3D11RenderTargetView*&)pRenderTargetView, DirectX::Colors::MidnightBlue);
+		pSwapChain->Present(0, 0);
 		
 	}
+
+	pDeviceContext->Release();
+	pRenderTargetView->Release();
+	pSwapChain->Release();
+	pDevice->Release();
 
 	FreeConsole();
 
@@ -197,7 +322,7 @@ void OnLeftDown(HWND hwnd, WPARAM wParam, LPARAM lParam)
 	ellipse.point = ptMouse;
 	ellipse.radiusX = 1.0f;
 	ellipse.radiusY = 1.0f;
-	ConsoleLog(L"Mouse Point: (X:{%.2f},Y:{%.2f})\n ", ptMouse.x, ptMouse.y);
+	ConsoleLog(L"Mouse Point: (X:{%.2f},Y:{%.2f})\n", ptMouse.x, ptMouse.y);
 	InvalidateRect(hwnd, nullptr, FALSE);
 }
 
@@ -432,6 +557,8 @@ void D2RenderTestClose()
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	static bool InFocus = true;
+	PAINTSTRUCT ps;
+	HDC hdc;
 	LRESULT result = 0;
 	switch (uMsg)
 	{
@@ -499,6 +626,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case WM_PAINT:
 	{
 		//D2DRenderTest(hwnd);
+		hdc = BeginPaint(hwnd, &ps);
+		EndPaint(hwnd, &ps);
 		break;
 	}
 	case WM_SIZE:
