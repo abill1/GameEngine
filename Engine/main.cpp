@@ -5,6 +5,7 @@
 //================================================================================
 //----- Includes
 //================================================================================
+
 #include <windows.h>
 #include <tchar.h>
 #include <assert.h>
@@ -96,6 +97,11 @@ void StubMouseFunc(HWND hwnd, WPARAM wParam, LPARAM lParam);
 void OnLeftDown(HWND hwnd, WPARAM wParam, LPARAM lParam);
 void OnLeftUp(HWND hwnd, WPARAM wParam, LPARAM lParam);
 void OnMove(HWND hwnd, WPARAM wParam, LPARAM lParam);
+void OnExit();
+void D2DRenderTest(HWND _hwnd);
+void D2DRenderTestResize(HWND _hwnd);
+LRESULT D2RenderTestInit();
+void D2RenderTestClose();
 
 //================================================================================
 //----- Main
@@ -127,6 +133,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 
 	Inputs['A'] = std::bind(&Dog::Bark, &spot);
 	Inputs['W'] = std::bind(&Cat::Meow, &felix);
+	Inputs[VK_ESCAPE] = std::bind(&OnExit);
 
 	MouseInputs[(int)MOUSE_INPUTS::LEFT_DOWN] = std::bind(&OnLeftDown, _1, _2, _3);
 	MouseInputs[(int)MOUSE_INPUTS::LEFT_UP] = std::bind(&OnLeftUp, _1, _2, _3);
@@ -217,6 +224,15 @@ void OnMove(HWND hwnd, WPARAM wParam, LPARAM lParam)
 		ellipse = D2D1::Ellipse(D2D1::Point2F(x1, y1), width, height);
 		InvalidateRect(hwnd, nullptr, FALSE);
 	}
+}
+
+void OnExit()
+{
+	//D2RenderTestClose();
+	// ----- Update Game state
+	bRunning = false;
+	// ----- Close window
+	PostQuitMessage(0);
 }
 
 void Cat::Meow()
@@ -324,6 +340,95 @@ D2D1_POINT_2F PixelsToDips(HWND _hwnd, float _x, float _y)
 	return(D2D1::Point2F(_x / scale, _y / scale));
 }
 
+void D2DRenderTest(HWND _hwnd)
+{
+	long hr = S_OK;
+	if (p2dRenderTarget == nullptr)
+	{
+		RECT rc = {};
+		GetClientRect(_hwnd, &rc);
+		D2D1_SIZE_U size = D2D1::SizeU((UINT32)rc.right, (UINT32)rc.bottom);
+
+		hr = p2dFactory->CreateHwndRenderTarget(D2D1::RenderTargetProperties(), D2D1::HwndRenderTargetProperties(_hwnd, size), &p2dRenderTarget);
+
+		if (SUCCEEDED(hr))
+		{
+			const D2D1_COLOR_F color = D2D1::ColorF(1.0f, 1.0f, 0.0f);
+			hr = p2dRenderTarget->CreateSolidColorBrush(color, &pBrush);
+			if (SUCCEEDED(hr))
+			{
+				if (p2dRenderTarget != nullptr)
+				{
+					D2D1_SIZE_F size = p2dRenderTarget->GetSize();
+					const float x = size.width / 2.0f;
+					const float y = size.height / 2.0f;
+					const float radius = min(x, y);
+					ellipse = D2D1::Ellipse(D2D1::Point2F(x, y), radius, radius);
+				}
+			}
+		}
+	}
+
+	if (SUCCEEDED(hr))
+	{
+		PAINTSTRUCT ps;
+		BeginPaint(_hwnd, &ps);
+		p2dRenderTarget->BeginDraw();
+		p2dRenderTarget->Clear(D2D1::ColorF(D2D1::ColorF::SkyBlue));
+		p2dRenderTarget->FillEllipse(ellipse, pBrush);
+		hr = p2dRenderTarget->EndDraw();
+		if (FAILED(hr) || hr == D2DERR_RECREATE_TARGET)
+		{
+			CHECK_NULL(p2dRenderTarget);
+			p2dRenderTarget->Release();
+			CHECK_NULL(pBrush);
+			pBrush->Release();
+		}
+		EndPaint(_hwnd, &ps);
+	}
+}
+
+void D2DRenderTestResize(HWND _hwnd)
+{
+	if (p2dRenderTarget != NULL)
+	{
+		RECT rc;
+		GetClientRect(_hwnd, &rc);
+
+		D2D1_SIZE_U size = D2D1::SizeU((UINT32)rc.right, (UINT32)rc.bottom);
+
+		p2dRenderTarget->Resize(size);
+		if (p2dRenderTarget != NULL)
+		{
+			D2D1_SIZE_F size = p2dRenderTarget->GetSize();
+			const float x = size.width / 2.0f;
+			const float y = size.height / 2.0f;
+			const float radius = min(x, y);
+			ellipse = D2D1::Ellipse(D2D1::Point2F(x, y), radius, radius);
+		}
+		InvalidateRect(_hwnd, NULL, FALSE);
+	}
+}
+
+LRESULT D2RenderTestInit()
+{
+	LRESULT result = 0;
+	if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &p2dFactory)))
+		result = -1;
+	return result;
+}
+
+void D2RenderTestClose()
+{
+	// ----- Release 2d Graphic objects
+	CHECK_NULL(p2dRenderTarget);
+	p2dRenderTarget->Release();
+	CHECK_NULL(pBrush);
+	pBrush->Release();
+	CHECK_NULL(p2dFactory);
+	p2dFactory->Release();
+}
+
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	static bool InFocus = true;
@@ -332,24 +437,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	{
 	case WM_CREATE:
 	{
-		if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &p2dFactory)))
-			result =  -1;
+		//result = D2RenderTestInit();
 		break;
 	}
 	case WM_QUIT:
 	case WM_DESTROY:
 	{
-		// ----- Release 2d Graphic objects
-		CHECK_NULL(p2dRenderTarget);
-		p2dRenderTarget->Release();
-		CHECK_NULL(pBrush);
-		pBrush->Release();
-		CHECK_NULL(p2dFactory);
-		p2dFactory->Release();
-		// ----- Update Game state
-		bRunning = false;
-		// ----- Close window
-		PostQuitMessage(0);
+		OnExit();
 		break;
 	}
 	case WM_KILLFOCUS:
@@ -404,71 +498,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	}
 	case WM_PAINT:
 	{
-		long hr = S_OK;
-		if (p2dRenderTarget == nullptr)
-		{
-			RECT rc = {};
-			GetClientRect(hwnd, &rc);
-			D2D1_SIZE_U size = D2D1::SizeU((UINT32)rc.right, (UINT32)rc.bottom);
-
-			hr = p2dFactory->CreateHwndRenderTarget(D2D1::RenderTargetProperties(), D2D1::HwndRenderTargetProperties(hwnd, size), &p2dRenderTarget);
-			if (SUCCEEDED(hr))
-			{
-				const D2D1_COLOR_F color = D2D1::ColorF(1.0f, 1.0f, 0.0f);
-				hr = p2dRenderTarget->CreateSolidColorBrush(color, &pBrush);
-				if (SUCCEEDED(hr))
-				{
-					if (p2dRenderTarget != nullptr)
-					{
-						D2D1_SIZE_F size = p2dRenderTarget->GetSize();
-						const float x = size.width / 2.0f;
-						const float y = size.height / 2.0f;
-						const float radius = min(x, y);
-						ellipse = D2D1::Ellipse(D2D1::Point2F(x, y), radius, radius);
-					}
-				}
-			}
-		}
-
-		if (SUCCEEDED(hr))
-		{
-			PAINTSTRUCT ps;
-			BeginPaint(hwnd, &ps);
-			p2dRenderTarget->BeginDraw();
-			p2dRenderTarget->Clear(D2D1::ColorF(D2D1::ColorF::SkyBlue));
-			p2dRenderTarget->FillEllipse(ellipse, pBrush);
-			hr = p2dRenderTarget->EndDraw();
-			if (FAILED(hr) || hr == D2DERR_RECREATE_TARGET)
-			{
-				CHECK_NULL(p2dRenderTarget);
-				p2dRenderTarget->Release();
-				CHECK_NULL(pBrush);
-				pBrush->Release();
-			}
-			EndPaint(hwnd, &ps);
-		}
+		//D2DRenderTest(hwnd);
 		break;
 	}
 	case WM_SIZE:
 	{
-		if (p2dRenderTarget != NULL)
-		{
-			RECT rc;
-			GetClientRect(hwnd, &rc);
-
-			D2D1_SIZE_U size = D2D1::SizeU((UINT32)rc.right, (UINT32)rc.bottom);
-
-			p2dRenderTarget->Resize(size);
-			if (p2dRenderTarget != NULL)
-			{
-				D2D1_SIZE_F size = p2dRenderTarget->GetSize();
-				const float x = size.width / 2;
-				const float y = size.height / 2;
-				const float radius = min(x, y);
-				ellipse = D2D1::Ellipse(D2D1::Point2F(x, y), radius, radius);
-			}
-			InvalidateRect(hwnd, NULL, FALSE);
-		}
+		//D2DRenderTestResize(hwnd);
 		break;
 	}
 	default:
