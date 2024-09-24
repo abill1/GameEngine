@@ -7,7 +7,10 @@ includedirs {
 }
 links {
 	"d2d1.lib",
-	"d3d11.lib"
+	"d3d11.lib",
+	"d3dcompiler.lib",
+	"winmm.lib",
+	"Dxgi.lib"
 }
 libdirs {
 	"%{wks.location}/build/bin/%{cfg.architecture}-%{cfg.buildcfg}/",
