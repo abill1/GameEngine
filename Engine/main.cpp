@@ -107,6 +107,22 @@ struct TriangleIndex
 
 };
 
+struct Image
+{
+	float x;
+	float y;
+	float xWidth;
+	float yWidth;
+};
+
+struct ImageBuffer
+{
+	float u;
+	float v;
+private:
+	float pad[2];
+};
+
 //================================================================================
 //----- Globals
 //================================================================================
@@ -317,18 +333,41 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
  		return hr;
  
  	// Model Data
+	float sheetWidth = 640.0f;
+	float len        = 40.0f / sheetWidth;
+	float u          = 280.0f / sheetWidth;
+	float v          = 280.0f / sheetWidth;
+
+	DirectX::XMMATRIX texMat = DirectX::XMMatrixTranslation(u, v, 1.0f);
+	ConsoleLog(L"MAT: %f\n", texMat.r[0].m128_f32[0]);
+	DirectX::XMVECTOR uvPos = { 1.0f, 1.0f, 0.0f, 1.0f };
+	fVect uvRes = {};
+	uvRes.v = DirectX::XMVector4Transform(uvPos, texMat);
+
+	float uStart = 216.0f / 384.0f;
+	float vStart = 120.0f / 640.0f;
+	float uExtent = 24.0f / 384.0f;
+	float vExtent = 40.0f / 640.0f;
+
+	DirectX::XMMATRIX scaleMat = DirectX::XMMatrixScaling(uExtent, vExtent, 1.0f);
+	DirectX::XMMATRIX transMat = DirectX::XMMatrixTranslation(uStart, vStart, 0.0f);
+	DirectX::XMMATRIX glyph = scaleMat * transMat;
+
 	Vertex vertices[] = {
 		{0.5f, -0.5f, 0.0f, 1.0f,  0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f },
 		{-0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f },
 		{-0.5f, 0.5f, 0.0f, 1.0f,  1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f },
-		{0.5f, 0.5f, 0.0f, 1.0f,   0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f }	
+		{0.5f, 0.5f, 0.0f, 1.0f,   0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f }
 	};
 
 	TriangleIndex indices[] = {
 		{0, 1, 2},
 		{2, 3, 0}
 	};
- 
+	
+	
+	
+
  	// Shader setup
  	std::wstring SHADER_ROOT = L"";
  	if (IsDebuggerPresent())
@@ -419,7 +458,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
 	pDevice->CreateSamplerState(&sampDesc, &pSamplerState);
 	
-	const char* pWallFileLocation = "F:\\programming_projects\\GameEngine\\Assets\\Textures\\grazer.tga";
+	const char* pWallFileLocation = "F:\\programming_projects\\GameEngine\\Assets\\Textures\\FontSheetFixedsys.tga";
 	int twidth = 0;
 	int theight = 0;
 	int tchannels = 0;
@@ -458,6 +497,23 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 	ID3D11BlendState* pBlendState;
 	pDevice->CreateBlendState(&blendStateDesc, &pBlendState);
 
+	D3D11_BUFFER_DESC cbDesc = {};
+	cbDesc.ByteWidth = sizeof(glyph);
+	cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+	cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	cbDesc.MiscFlags = 0;
+	cbDesc.StructureByteStride = 0;
+
+	D3D11_SUBRESOURCE_DATA cbResource = {};
+	cbResource.pSysMem = &glyph;
+	cbResource.SysMemPitch = 0;
+	cbResource.SysMemSlicePitch = 0;
+
+	ID3D11Buffer* pImgCBuf;
+	pDevice->CreateBuffer(&cbDesc, &cbResource, &pImgCBuf);
+
+
  	// ---- Game loop
  	while (bRunning)
  	{
@@ -486,7 +542,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
  
  		// ----- Define draw conditions
  		pDeviceContext->IASetInputLayout(pInputLayout);
-		
+		pDeviceContext->VSSetConstantBuffers(0, 1, &pImgCBuf);
  		pDeviceContext->VSSetShader(pVertexShader, nullptr, 0);
  		pDeviceContext->PSSetShader(pPixelShader, nullptr, 0);
 		pDeviceContext->PSSetSamplers(0, 1, &pSamplerState);
