@@ -10,5 +10,6 @@ SamplerState objSamplerState : SAMPLER : register(s0);
 
 float4 main(outData input) : SV_TARGET
 {
-	return objTexture.Sample(objSamplerState, input.texcoord);
+	float4 texClr = objTexture.Sample(objSamplerState, input.texcoord);
+	return texClr * input.color;
 }
