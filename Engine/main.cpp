@@ -162,6 +162,7 @@ void D2DRenderTest(HWND _hwnd);
 void D2DRenderTestResize(HWND _hwnd);
 LRESULT D2RenderTestInit();
 void D2RenderTestClose();
+ID3D11Buffer* CreateConstantBuffer(ID3D11Device* pDevice, unsigned int _byteWidth, void* _pResource);
 
 //================================================================================
 //----- Main
@@ -333,17 +334,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
  		return hr;
  
  	// Model Data
-	float sheetWidth = 640.0f;
-	float len        = 40.0f / sheetWidth;
-	float u          = 280.0f / sheetWidth;
-	float v          = 280.0f / sheetWidth;
-
-	DirectX::XMMATRIX texMat = DirectX::XMMatrixTranslation(u, v, 1.0f);
-	ConsoleLog(L"MAT: %f\n", texMat.r[0].m128_f32[0]);
-	DirectX::XMVECTOR uvPos = { 1.0f, 1.0f, 0.0f, 1.0f };
-	fVect uvRes = {};
-	uvRes.v = DirectX::XMVector4Transform(uvPos, texMat);
-
 	float uStart = 216.0f / 384.0f;
 	float vStart = 120.0f / 640.0f;
 	float uExtent = 24.0f / 384.0f;
@@ -354,10 +344,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 	DirectX::XMMATRIX glyph = scaleMat * transMat;
 
 	Vertex vertices[] = {
-		{0.5f, -0.5f, 0.0f, 1.0f,  0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f },
-		{-0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f },
-		{-0.5f, 0.5f, 0.0f, 1.0f,  1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f },
-		{0.5f, 0.5f, 0.0f, 1.0f,   0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f }
+		{1.0f, -1.0f, 0.0f, 1.0f,  0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f },
+		{-1.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f },
+		{-1.0f, 1.0f, 0.0f, 1.0f,  1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f },
+		{1.0f, 1.0f, 0.0f, 1.0f,   0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f }
 	};
 
 	TriangleIndex indices[] = {
@@ -497,21 +487,14 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 	ID3D11BlendState* pBlendState;
 	pDevice->CreateBlendState(&blendStateDesc, &pBlendState);
 
-	D3D11_BUFFER_DESC cbDesc = {};
-	cbDesc.ByteWidth = sizeof(glyph);
-	cbDesc.Usage = D3D11_USAGE_DYNAMIC;
-	cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	cbDesc.MiscFlags = 0;
-	cbDesc.StructureByteStride = 0;
+	ID3D11Buffer* pImgCBuf = CreateConstantBuffer(pDevice, sizeof(glyph), &glyph);
 
-	D3D11_SUBRESOURCE_DATA cbResource = {};
-	cbResource.pSysMem = &glyph;
-	cbResource.SysMemPitch = 0;
-	cbResource.SysMemSlicePitch = 0;
-
-	ID3D11Buffer* pImgCBuf;
-	pDevice->CreateBuffer(&cbDesc, &cbResource, &pImgCBuf);
+	float scale = 0.425f;
+	DirectX::XMMATRIX TRS[3];
+	TRS[0] = DirectX::XMMatrixTranslation(0.0f, 0.0f, 0.0f)  * DirectX::XMMatrixScaling(scale, scale, scale);
+	TRS[1] = DirectX::XMMatrixTranslation(-1.35f, 0.0f, 0.0f) * DirectX::XMMatrixScaling(scale, scale, scale);
+	TRS[2] = DirectX::XMMatrixTranslation(1.35f, 0.0f, 0.0f) * DirectX::XMMatrixScaling(scale, scale, scale);
+	ID3D11Buffer* pTRSCBuf = CreateConstantBuffer(pDevice, sizeof(TRS), &TRS);
 
 
  	// ---- Game loop
@@ -531,7 +514,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
  
  		// ------ Clear Screen
 		
-		
  		fVect clearColor = { 0.2f, 0.2f, 0.2f, 1.0f };
  		pDeviceContext->ClearRenderTargetView(pRenderTargetView, &clearColor[0]);
 		D3D11_VIEWPORT viewport = CD3D11_VIEWPORT(0.0f, 0.0f, 1280.0f, 800.0f);
@@ -543,6 +525,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
  		// ----- Define draw conditions
  		pDeviceContext->IASetInputLayout(pInputLayout);
 		pDeviceContext->VSSetConstantBuffers(0, 1, &pImgCBuf);
+		pDeviceContext->VSSetConstantBuffers(1, 1, &pTRSCBuf);
  		pDeviceContext->VSSetShader(pVertexShader, nullptr, 0);
  		pDeviceContext->PSSetShader(pPixelShader, nullptr, 0);
 		pDeviceContext->PSSetSamplers(0, 1, &pSamplerState);
@@ -552,9 +535,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
  		unsigned int offset = 0;
  		pDeviceContext->IASetVertexBuffers(0, 1, &pVertexBuffer, &stride, &offset);
 		pDeviceContext->IASetIndexBuffer(pIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-		
+
  		// ----- Send data to Draw
- 		pDeviceContext->DrawIndexed(6, 0, 0);
+ 		//pDeviceContext->DrawIndexed(6, 0, 0);
+		pDeviceContext->DrawIndexedInstanced(6, 3, 0, 0, 0);
  
  		// ----- Show and swap
  		pSwapChain->Present(1, 0);
@@ -565,6 +549,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 	// ----- Clean up
 	//-----------------------------------------------------------------
 
+	RELEASECOM(pImgCBuf);
+	RELEASECOM(pTRSCBuf);
 	RELEASECOM(pWallTexture);
 	RELEASECOM(pTexture);
 	RELEASECOM(pBlendState);
@@ -587,6 +573,28 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 //================================================================================
 // ----- Functions Defines
 //================================================================================
+
+ID3D11Buffer* CreateConstantBuffer(ID3D11Device* _pDevice,unsigned int _byteWidth, void* _pResource)
+{
+	ID3D11Buffer* pBuffer;
+
+	D3D11_BUFFER_DESC cbDesc = {};
+	cbDesc.ByteWidth = _byteWidth;
+	cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+	cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	cbDesc.MiscFlags = 0;
+	cbDesc.StructureByteStride = 0;
+
+	D3D11_SUBRESOURCE_DATA cbResource = {};
+	cbResource.pSysMem = _pResource;
+	cbResource.SysMemPitch = 0;
+	cbResource.SysMemSlicePitch = 0;
+
+	_pDevice->CreateBuffer(&cbDesc, &cbResource, &pBuffer);
+
+	return pBuffer;
+}
 
 void OnLeftDown(HWND hwnd, WPARAM wParam, LPARAM lParam)
 {
