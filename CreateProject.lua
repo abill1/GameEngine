@@ -40,6 +40,16 @@ function CreateProject( projectname )
 			runtime "Release"
 		filter {}
 		
+		filter "system:windows"
+			shadermodel("5.0")
+			filter("files:**_ps.hlsl")
+				shadertype "Pixel"
+			filter{}
+			filter("files:**_vs.hlsl")
+				shadertype "Vertex"
+			filter{}
+		filter{}
+		
 end
 
 function SetStaticLib( )
