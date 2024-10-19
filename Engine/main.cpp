@@ -25,6 +25,7 @@
 #include <stdlib.h>
 
 #include "Vendor/stb/stb_image.h"
+#include "Vendor/FreeType/freetype.h"
 
 //================================================================================
 //----- Macros
@@ -121,6 +122,12 @@ struct ImageBuffer
 	float v;
 private:
 	float pad[2];
+};
+
+struct InstanceData
+{
+	DirectX::XMMATRIX mTRS[16];
+	DirectX::XMVECTOR mColors[16];
 };
 
 //================================================================================
@@ -236,6 +243,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
  		ShowWindow(hwnd, nCmdShow);
  	}
  
+	// ----- Load the FreeType library
+
+
  	// ----- DirectX 11 Setup
  
  	ID3D11Device* pDevice;
@@ -448,11 +458,11 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
 	pDevice->CreateSamplerState(&sampDesc, &pSamplerState);
 	
-	const char* pWallFileLocation = "F:\\programming_projects\\GameEngine\\Assets\\Textures\\FontSheetFixedsys.tga";
+	const char* pFontFile = "F:\\programming_projects\\GameEngine\\Assets\\Textures\\FontSheetFixedsys.tga";
 	int twidth = 0;
 	int theight = 0;
 	int tchannels = 0;
-	unsigned char* pTextureFileData = stbi_load(pWallFileLocation, &twidth, &theight, &tchannels, 4);
+	unsigned char* pTextureFileData = stbi_load(pFontFile, &twidth, &theight, &tchannels, 4);
 	D3D11_SUBRESOURCE_DATA wallData = {};
 	wallData.pSysMem = pTextureFileData;
 	wallData.SysMemPitch = twidth*4;
@@ -490,12 +500,16 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 	ID3D11Buffer* pImgCBuf = CreateConstantBuffer(pDevice, sizeof(glyph), &glyph);
 
 	float scale = 0.425f;
-	DirectX::XMMATRIX TRS[3];
-	TRS[0] = DirectX::XMMatrixTranslation(0.0f, 0.0f, 0.0f)  * DirectX::XMMatrixScaling(scale, scale, scale);
-	TRS[1] = DirectX::XMMatrixTranslation(-1.35f, 0.0f, 0.0f) * DirectX::XMMatrixScaling(scale, scale, scale);
-	TRS[2] = DirectX::XMMatrixTranslation(1.35f, 0.0f, 0.0f) * DirectX::XMMatrixScaling(scale, scale, scale);
-	ID3D11Buffer* pTRSCBuf = CreateConstantBuffer(pDevice, sizeof(TRS), &TRS);
-
+	InstanceData instData;
+	//DirectX::XMMATRIX TRS[3];
+	instData.mTRS[0] = DirectX::XMMatrixTranslation(-1.35f, 0.0f, 0.0f) * DirectX::XMMatrixScaling(scale, scale, scale);
+	instData.mTRS[1] = DirectX::XMMatrixTranslation(0.0f, 0.0f, 0.0f)  * DirectX::XMMatrixScaling(scale, scale, scale);
+	instData.mTRS[2] = DirectX::XMMatrixTranslation(1.35f, 0.0f, 0.0f) * DirectX::XMMatrixScaling(scale, scale, scale);
+	instData.mColors[0] = { 1.0f, 0.0f, 0.0f, 1.0f };
+	instData.mColors[1] = { 1.0f, 1.0f, 0.0f, 1.0f };
+	instData.mColors[2] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	ID3D11Buffer* pTRSCBuf = CreateConstantBuffer(pDevice, sizeof(instData), &instData);
+	// (sizeof(DirectX::XMMATRIX) + sizeof(DirectX::XMVECTOR))
 
  	// ---- Game loop
  	while (bRunning)
