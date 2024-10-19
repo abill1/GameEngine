@@ -245,6 +245,12 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
  
 	// ----- Load the FreeType library
 
+	FT_Library ft;
+	if (FT_Init_FreeType(&ft))
+	{
+		ConsoleErr(L"Failed to Load FreeType Library.\n");
+		bRunning = false;
+	}
 
  	// ----- DirectX 11 Setup
  
@@ -380,9 +386,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
  	}
  
  	ID3D10Blob* vertexShaderBuffer;
- 	const wchar_t* VERT_FILE = L"VertexShader.cso";
+ 	const wchar_t* VERT_FILE = L"Shader_vs.cso";
  	ID3D10Blob* pixelShaderBuffer;
- 	const wchar_t* PIXEL_FILE = L"PixelShader.cso";
+ 	const wchar_t* PIXEL_FILE = L"Shader_ps.cso";
  
  	DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
  #ifdef _DEBUG
