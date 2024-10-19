@@ -20,13 +20,14 @@ cbuffer imageBuffer : register(b0)
 cbuffer trsBuffer : register(b1)
 {
 	float4x4 TRS[16];
+	float4 mColors[16];
 };
 
 outData main( inData input, uint id : SV_instanceID  )
 {
 	outData output;
 	output.pos = mul(TRS[id], input.pos);
-	output.color = input.color;
+	output.color = mColors[id];//input.color;
 	float4 tc = float4(input.texcoord[0], input.texcoord[1], 0.0f, 1.0f);
 	float4 rtc = mul(imgCoord, tc);
 	output.texcoord = float2(rtc[0], rtc[1]);
