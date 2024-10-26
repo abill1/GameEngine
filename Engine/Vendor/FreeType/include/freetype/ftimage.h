@@ -274,14 +274,15 @@ FT_BEGIN_HEADER
    */
   typedef struct  FT_Bitmap_
   {
+    void* palette;
+    unsigned char* buffer;
     unsigned int    rows;
     unsigned int    width;
     int             pitch;
-    unsigned char*  buffer;
     unsigned short  num_grays;
     unsigned char   pixel_mode;
     unsigned char   palette_mode;
-    void*           palette;
+    
 
   } FT_Bitmap;
 
@@ -350,13 +351,11 @@ FT_BEGIN_HEADER
    */
   typedef struct  FT_Outline_
   {
+    FT_Vector* points;      /* the outline's points               */
+    unsigned char* tags;        /* the points flags                   */
+    unsigned short* contours;    /* the contour end points             */
     unsigned short   n_contours;  /* number of contours in glyph        */
     unsigned short   n_points;    /* number of points in the glyph      */
-
-    FT_Vector*       points;      /* the outline's points               */
-    unsigned char*   tags;        /* the points flags                   */
-    unsigned short*  contours;    /* the contour end points             */
-
     int              flags;       /* outline masks                      */
 
   } FT_Outline;
