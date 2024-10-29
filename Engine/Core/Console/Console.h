@@ -1,6 +1,7 @@
 
 #ifndef ENGINE_CORE_CONSOLE_H
 #define ENGINE_CORE_CONSOLE_H
+
 #include <consoleapi.h>
 #include <processenv.h>
 #include <consoleapi2.h>
@@ -12,14 +13,21 @@ namespace Engine
 {
 	namespace Console
 	{
-		void Init()
+		static void Init()
 		{
 #if _DEBUG
 			AllocConsole();
 #endif
 		}
 
-		void Log(const wchar_t* Text, ...)
+		static void Release()
+		{
+#if _DEBUG
+			FreeConsole();
+#endif
+		}
+
+		static void Log(const wchar_t* Text, ...)
 		{
 #if _DEBUG
 			const int MAX_BUF_SIZE = 4096;
@@ -42,7 +50,7 @@ namespace Engine
 			OutputDebugStringW(WIDE_CONSOLE_BUF);
 #endif
 		}
-		void Error(const wchar_t* Text, ...)
+		static void Error(const wchar_t* Text, ...)
 		{
 #if _DEBUG
 			const int MAX_BUF_SIZE = 4096;
@@ -65,7 +73,7 @@ namespace Engine
 			OutputDebugStringW(WIDE_CONSOLE_BUF);
 #endif
 		}
-		void Warning(const wchar_t* Text, ...)
+		static void Warning(const wchar_t* Text, ...)
 		{
 #if _DEBUG
 			const int MAX_BUF_SIZE = 4096;
