@@ -4,10 +4,6 @@
 
 #include <d3d11.h>
 #include <windows.h>
-#include <DirectXMath.h>
-
-#define RELEASECOM(x) if(x!=nullptr){x->Release();x=nullptr;}
-#define CLEARMEM(x) ZeroMemory(&x, sizeof(x))
 
 namespace Engine
 {
@@ -68,7 +64,6 @@ namespace Engine
 		IDXGIFactory* pDXGIFactory1;
 		IDXGIAdapter* pDXGIAdapter;
 		IDXGIDevice* pDXGIDevice;
-		//ID3D11InputLayout* pInputLayout;
 
 	};
 }
