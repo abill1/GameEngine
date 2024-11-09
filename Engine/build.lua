@@ -1,6 +1,6 @@
 CreateProject("Engine")
 forceincludes { 
-
+	"Framework/Framework.h"
 }
 includedirs {
 	
