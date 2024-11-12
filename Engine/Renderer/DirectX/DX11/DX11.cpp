@@ -65,7 +65,7 @@ Engine::DX11::~DX11()
 	RELEASECOM(pDevice);
 }
 
-ID3D11Buffer* Engine::DX11::CreateVertexBuffer(unsigned int _size, void* _vertices)
+ID3D11Buffer* Engine::DX11::CreateVertexBuffer(unsigned int _size, const void* _vertices)
 {
 	ID3D11Buffer* buffer = nullptr;
 
@@ -299,7 +299,7 @@ ID3D11ShaderResourceView* Engine::DX11::CreateShaderResourceView(ID3D11Texture2D
 	return pResource;
 }
 
-void Engine::DX11::ClearScreen(DirectX::XMFLOAT4& _clearColor)
+void Engine::DX11::ClearScreen(fVect& _clearColor)
 {
 	pDeviceContext->ClearRenderTargetView(pRenderTargetView, &_clearColor.x);
 }

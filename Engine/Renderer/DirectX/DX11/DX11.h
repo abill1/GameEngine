@@ -4,6 +4,7 @@
 
 #include <d3d11.h>
 #include <windows.h>
+#include "DXDataStructures.h"
 
 namespace Engine
 {
@@ -14,7 +15,7 @@ namespace Engine
 		~DX11();
 
 		// ----- Buffers
-		ID3D11Buffer* CreateVertexBuffer(unsigned int _size, void* _vertices);
+		ID3D11Buffer* CreateVertexBuffer(unsigned int _size, const void* _vertices);
 		ID3D11Buffer* CreateIndexBuffer(unsigned int _size, void* _indices);
 		ID3D11Buffer* CreateConstantBuffer(unsigned int _resourceSize, void* _resource);
 
@@ -41,7 +42,7 @@ namespace Engine
 
 		// ----- Draw
 
-		void ClearScreen(DirectX::XMFLOAT4& _clearColor);
+		void ClearScreen(fVect& _clearColor);
 		void SetViewport(const D3D11_VIEWPORT* _viewport, int _numOfViewports = 1);
 		void SetRenderTarget(ID3D11DepthStencilView* _depthStencil, int _numOfTargets = 1);
 		void SetBlendState(ID3D11BlendState* _blendState);
