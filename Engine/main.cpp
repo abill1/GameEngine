@@ -25,6 +25,7 @@
 #include "Vendor/stb/stb_image.h"
 #include "Vendor/FreeType/freetype.h"
 #include "Renderer/DirectX/DX11/DX11.h"
+#include "Renderer/DirectX/Components/Transform/CTransform.h"
 
 //================================================================================
 //----- Structures
@@ -48,26 +49,26 @@ public:
 	void Meow();
 };
 
-struct TexCoord
-{
-	float u;
-	float v;
-};
+// struct TexCoord
+// {
+// 	float u;
+// 	float v;
+// };
 
-struct Vertex
-{
-	fVect position;
-	fVect color;
-	TexCoord texcoord;
-};
+// struct Vertex
+// {
+// 	fVect position;
+// 	fVect color;
+// 	TexCoord texcoord;
+// };
 
-struct TriangleIndex
-{
-	unsigned int v0;
-	unsigned int v1;
-	unsigned int v2;
-
-};
+// struct TriangleIndex
+// {
+// 	unsigned int v0;
+// 	unsigned int v1;
+// 	unsigned int v2;
+// 
+// };
 
 struct Image
 {
@@ -197,15 +198,22 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 	DirectX::XMMATRIX scaleMat = DirectX::XMMatrixScaling(uExtent, vExtent, 1.0f);
 	DirectX::XMMATRIX transMat = DirectX::XMMatrixTranslation(uStart, vStart, 0.0f);
 	DirectX::XMMATRIX glyph = scaleMat * transMat;
-	
-	Vertex vertices[] = {
-		{{1.0f, -1.0f, 0.0f, 1.0f },  {0.0f, 1.0f, 0.0f, 1.0f}, 1.0f, 1.0f },
-		{{-1.0f, -1.0f, 0.0f, 1.0f},  {0.0f, 0.0f, 1.0f, 1.0f}, 0.0f, 1.0f },
-		{{-1.0f, 1.0f, 0.0f, 1.0f },  {1.0f, 0.0f, 0.0f, 1.0f}, 0.0f, 0.0f },
-		{{1.0f, 1.0f, 0.0f, 1.0f  },  {0.0f, 1.0f, 1.0f, 1.0f}, 1.0f, 0.0f }
+
+	Engine::Vertex vertices[] = {
+		{{1.0f, -1.0f, 0.0f, 1.0f },  {0.0f, 1.0f, 0.0f, 1.0f}, {1.0f, 1.0f} },
+		{{-1.0f, -1.0f, 0.0f, 1.0f},  {0.0f, 0.0f, 1.0f, 1.0f}, {0.0f, 1.0f} },
+		{{-1.0f, 1.0f, 0.0f, 1.0f },  {1.0f, 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f} },
+		{{1.0f, 1.0f, 0.0f, 1.0f  },  {0.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 0.0f} }
 	};
 	
-	TriangleIndex indices[] = {
+	// Engine::Vertex* vertices = new Engine::Vertex[4];
+	// vertices[0] = Engine::Vertex{ {1.0f, -1.0f, 0.0f, 1.0f },  {0.0f, 1.0f, 0.0f, 1.0f}, 1.0f, 1.0f };
+	// vertices[1] = Engine::Vertex{ {-1.0f, -1.0f, 0.0f, 1.0f},  {0.0f, 0.0f, 1.0f, 1.0f}, 0.0f, 1.0f };
+	// vertices[2] = Engine::Vertex{ {-1.0f, 1.0f, 0.0f, 1.0f },  {1.0f, 0.0f, 0.0f, 1.0f}, 0.0f, 0.0f };
+	// vertices[3] = Engine::Vertex{ {1.0f, 1.0f, 0.0f, 1.0f  },  {0.0f, 1.0f, 1.0f, 1.0f}, 1.0f, 0.0f };
+
+	Engine::TriangleIndex indices[] =
+	{
 		{0, 1, 2},
 		{2, 3, 0}
 	};
@@ -217,7 +225,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
  #ifdef _DEBUG
  		SHADER_ROOT = L"..\\build\\bin\\x86_64-Debug\\";
  #elif NDEBUG
- 		SHADER_ROOT = L"..\\build\\bin\\x86_64-Debug\\";
+ 		SHADER_ROOT = L"..\\build\\bin\\x86_64-Release\\";
  #endif
  	}
 	 
@@ -254,8 +262,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 	ID3D11Buffer* pIndexBuffer = dx11.CreateIndexBuffer(sizeof(indices), indices);
 	
 	ID3D11SamplerState* pSamplerState = dx11.CreateSamplerState();
-	
-	const char* pFontFile = "F:\\programming_projects\\GameEngine\\Assets\\Textures\\FontSheetFixedsys.tga";
+
+	const char* pFontFile = "..\\Assets\\Textures\\FontSheetFixedsys.tga";
 	ID3D11Texture2D* pWallTexture = dx11.CreateTexture(pFontFile);
 	ID3D11ShaderResourceView* pTexture = dx11.CreateShaderResourceView(pWallTexture);
 	
@@ -264,9 +272,14 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 	
 	float scale = 0.425f;
 	InstanceData instData;
-	instData.mTRS[0] = DirectX::XMMatrixTranslation(-1.35f, 0.0f, 0.0f) * DirectX::XMMatrixScaling(scale, scale, scale);
-	instData.mTRS[1] = DirectX::XMMatrixTranslation(0.0f, 0.0f, 0.0f)  * DirectX::XMMatrixScaling(scale, scale, scale);
-	instData.mTRS[2] = DirectX::XMMatrixTranslation(1.35f, 0.0f, 0.0f) * DirectX::XMMatrixScaling(scale, scale, scale);
+	
+	Engine::CTransform trs0({ -0.6f, 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }, 0.0f, scale);
+	Engine::CTransform trs1({ 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }, 0.0f, scale);
+	Engine::CTransform trs2({ 0.6f, 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f }, 0.0f, scale);
+
+	instData.mTRS[0] = trs0.GetTransform();
+	instData.mTRS[1] = trs1.GetTransform();
+	instData.mTRS[2] = trs2.GetTransform();
 	instData.mColors[0] = { 1.0f, 0.0f, 0.0f, 1.0f };
 	instData.mColors[1] = { 1.0f, 1.0f, 0.0f, 1.0f };
 	instData.mColors[2] = { 1.0f, 1.0f, 1.0f, 1.0f };
@@ -304,7 +317,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 		dx11.SetSampler(pSamplerState);
 		dx11.SetTexture(pTexture, 0);
  		
- 		unsigned int stride = sizeof(Vertex);
+ 		unsigned int stride = sizeof(Engine::Vertex);
  		unsigned int offset = 0;
 		dx11.SetVertexBuffer(pVertexBuffer, stride, offset, 0);
 		dx11.SetIndexBuffer(pIndexBuffer);
@@ -320,6 +333,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR pCmdLin
 	//-----------------------------------------------------------------
 	// ----- Clean up
 	//-----------------------------------------------------------------
+
+	//delete[] vertices;
 
 	RELEASECOM(pImgCBuf);
 	RELEASECOM(pTRSCBuf);
