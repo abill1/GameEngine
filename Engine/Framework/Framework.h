@@ -1,6 +1,6 @@
 
-#ifndef FRAMEWORK_H
-#define FRAMEWORK_H
+#ifndef ENGINE_FRAMEWORK_H
+#define ENGINE_FRAMEWORK_H
 
 #include <wrl/client.h>
 #include <DirectXMath.h>
@@ -26,7 +26,8 @@
 typedef DirectX::XMFLOAT4 fVect;
 typedef DirectX::XMFLOAT3 fVect3;
 typedef DirectX::XMFLOAT2 fVect2;
+typedef DirectX::XMMATRIX Matrix;
 
-#endif // FRAMEWORK_H
+#endif // ENGINE_FRAMEWORK_H
 
 
